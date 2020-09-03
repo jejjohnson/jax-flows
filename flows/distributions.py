@@ -1,7 +1,7 @@
 import jax.numpy as np
 from jax import random
 from jax.scipy.special import logsumexp
-from jax.scipy.stats import multivariate_normal
+from jax.scipy.stats import multivariate_normal, uniform
 
 
 def Normal():
@@ -15,10 +15,33 @@ def Normal():
         covariance = np.eye(input_dim)
 
         def log_pdf(params, inputs):
-            return multivariate_normal.logpdf(inputs, mean, covariance)
+            log_prob = multivariate_normal.logpdf(inputs, mean, covariance)
+            return log_prob
 
         def sample(rng, params, num_samples=1):
             return random.multivariate_normal(rng, mean, covariance, (num_samples,))
+
+        return (), log_pdf, sample
+
+    return init_fun
+
+
+def Uniform():
+    """
+    Returns:
+        A function mapping ``(rng, input_dim)`` to a ``(params, log_pdf, sample)`` triplet.
+    """
+
+    def init_fun(rng, input_dim):
+        def log_pdf(params, inputs):
+            log_prob = uniform.logpdf(inputs)
+            # print(log_prob.min(), log_prob.max())
+            log_prob = log_prob.sum(axis=1)
+            # print(log_prob.min(), log_prob.max())
+            return log_prob
+
+        def sample(rng, params, num_samples=1):
+            return random.uniform(rng, (num_samples, input_dim))
 
         return (), log_pdf, sample
 
@@ -30,14 +53,18 @@ def GMM(means, covariances, weights):
         def log_pdf(params, inputs):
             cluster_lls = []
             for log_weight, mean, cov in zip(np.log(weights), means, covariances):
-                cluster_lls.append(log_weight + multivariate_normal.logpdf(inputs, mean, cov))
+                cluster_lls.append(
+                    log_weight + multivariate_normal.logpdf(inputs, mean, cov)
+                )
             return logsumexp(np.vstack(cluster_lls), axis=0)
 
         def sample(rng, params, num_samples=1):
             cluster_samples = []
             for mean, cov in zip(means, covariances):
                 rng, temp_rng = random.split(rng)
-                cluster_sample = random.multivariate_normal(temp_rng, mean, cov, (num_samples,))
+                cluster_sample = random.multivariate_normal(
+                    temp_rng, mean, cov, (num_samples,)
+                )
                 cluster_samples.append(cluster_sample)
             samples = np.dstack(cluster_samples)
             idx = random.categorical(rng, weights, shape=(num_samples, 1, 1))
