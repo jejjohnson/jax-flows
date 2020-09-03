@@ -70,7 +70,9 @@ def AffineCouplingSplit(scale, translate):
         scale_params, scale_apply_fun = scale(scale_rng, cutoff, input_dim - cutoff)
 
         translate_rng, rng = random.split(rng)
-        translate_params, translate_apply_fun = translate(translate_rng, cutoff, input_dim - cutoff)
+        translate_params, translate_apply_fun = translate(
+            translate_rng, cutoff, input_dim - cutoff
+        )
 
         def direct_fun(params, inputs, **kwargs):
             scale_params, translate_params = params
@@ -186,7 +188,9 @@ def BatchNorm(momentum=0.9):
             x_hat = (inputs - mean) / np.sqrt(var)
 
             outputs = x_hat * np.exp(log_weight) + bias
-            log_det_jacobian = np.full((inputs.shape[0],), (log_weight - 0.5 * np.log(var)).sum())
+            log_det_jacobian = np.full(
+                (inputs.shape[0],), (log_weight - 0.5 * np.log(var)).sum()
+            )
             return outputs, log_det_jacobian
 
         def inverse_fun(params, inputs, **kwargs):
@@ -208,7 +212,9 @@ def BatchNorm(momentum=0.9):
             x_hat = (inputs - bias) * np.exp(-log_weight)
 
             outputs = x_hat * np.sqrt(var) + mean
-            log_det_jacobian = np.full((inputs.shape[0],), (-log_weight + 0.5 * np.log(var)).sum())
+            log_det_jacobian = np.full(
+                (inputs.shape[0],), (-log_weight + 0.5 * np.log(var)).sum()
+            )
             return outputs, log_det_jacobian
 
         return (log_weight, bias), direct_fun, inverse_fun
@@ -281,6 +287,8 @@ def InvertibleLinear():
 
             outputs = inputs @ W
             log_det_jacobian = np.full(inputs.shape[:1], np.log(np.abs(S)).sum())
+
+            # print(outputs.shape, log_det_jacobian.shape)
             return outputs, log_det_jacobian
 
         def inverse_fun(params, inputs, **kwargs):
@@ -398,7 +406,9 @@ def Sigmoid(clip_before_logit=True):
     def init_fun(rng, input_dim, **kwargs):
         def direct_fun(params, inputs, **kwargs):
             outputs = spys.expit(inputs)
-            log_det_jacobian = np.log(spys.expit(inputs) * (1 - spys.expit(inputs))).sum(-1)
+            log_det_jacobian = np.log(
+                spys.expit(inputs) * (1 - spys.expit(inputs))
+            ).sum(-1)
             return outputs, log_det_jacobian
 
         def inverse_fun(params, inputs, **kwargs):
@@ -440,7 +450,9 @@ def Serial(*init_funs):
         all_params, direct_funs, inverse_funs = [], [], []
         for init_fun in init_funs:
             rng, layer_rng = random.split(rng)
-            param, direct_fun, inverse_fun = init_fun(layer_rng, input_dim, init_inputs=init_inputs)
+            param, direct_fun, inverse_fun = init_fun(
+                layer_rng, input_dim, init_inputs=init_inputs
+            )
 
             all_params.append(param)
             direct_funs.append(direct_fun)
